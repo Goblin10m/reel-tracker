@@ -1,0 +1,120 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Reels"><meta name="theme-color" content="#2563eb"><title>Reel Tracker</title><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<style>
+/* Layout: single phone-width column of cards, same system as Budget Tracker */
+:root{--bg:#f6f7f9;--card:#fff;--tx:#14181f;--mu:#69707d;--bd:#e3e6eb;--ac:#2563eb;--on:#fff;--ok:#15803d;--wa:#b45309;--bad:#b91c1c;box-sizing:border-box}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1218;--card:#181c24;--tx:#eef0f4;--mu:#9aa1ae;--bd:#2a303b;--ac:#6b9bff;--on:#0f1218;--ok:#4ade80;--wa:#fbbf24;--bad:#f87171;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1218;--card:#181c24;--tx:#eef0f4;--mu:#9aa1ae;--bd:#2a303b;--ac:#6b9bff;--on:#0f1218;--ok:#4ade80;--wa:#fbbf24;--bad:#f87171;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 12px}
+h2{font-size:16px;margin:0 0 6px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px}
+input{flex:1;min-width:0}
+button{background:var(--ac);color:var(--on);border:0;font-weight:600;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button.ed{background:var(--bg);color:var(--ac);border:1px solid var(--bd);padding:6px 14px}
+button.step{flex:1;background:var(--bg);color:var(--ac);border:1px solid var(--bd);min-height:44px}
+button.plus{width:100%;min-height:56px;font-size:20px;margin-top:12px}
+.big{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.mu{color:var(--mu);font-size:14px}
+.top{justify-content:space-between;align-items:flex-start;flex-wrap:nowrap}
+.day{display:grid;grid-template-columns:84px 1fr 40px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--bd)}
+.day:first-of-type{border-top:0}
+.day .d{font-size:14px;min-width:0}
+.day .d b{font-weight:600}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ac)}
+.bar i.over{background:var(--bad)}
+.day .n{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.sum{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:10px;border-top:1px solid var(--bd)}
+@media(prefers-reduced-motion:no-preference){.bar i{transition:width .2s}}
+</style>
+<main>
+<h1>🎬 Reel Tracker</h1>
+<div class="card">
+  <div class="row top">
+    <div class="mu">Reels watched today</div>
+    <button type="button" id="editgoal" class="ed">Edit</button>
+  </div>
+  <div class="big" id="today">0</div>
+  <div class="mu" id="msg"></div>
+  <div id="goalform" hidden style="margin-top:10px">
+    <label class="mu" for="g_limit">Daily limit (reels)</label>
+    <input id="g_limit" type="number" inputmode="numeric" step="1" min="1" style="width:100%;margin:4px 0 8px">
+    <div class="row"><button type="button" id="g_save">Save</button><button type="button" id="g_cancel" class="ed">Cancel</button></div>
+  </div>
+  <button type="button" class="plus" data-add="1">+1 reel</button>
+  <div class="row" style="margin-top:8px">
+    <button type="button" class="step" data-add="-1">−1</button>
+    <button type="button" class="step" data-add="5">+5</button>
+    <button type="button" class="step" data-add="10">+10</button>
+  </div>
+</div>
+<div class="card">
+  <h2>Last 7 days</h2>
+  <div id="week"></div>
+  <div class="sum"><span class="mu">Week total <b id="wtot" style="color:var(--tx)">0</b></span><span class="mu">Daily average <b id="wavg" style="color:var(--tx)">0</b></span><span class="mu">All time <b id="atot" style="color:var(--tx)">0</b></span></div>
+</div>
+<div class="mu" id="store"></div>
+</main>
+<script>
+var DEF_LIMIT=50,st={days:{},limit:null},ref=null,mode='local',busy=false,dirty=false,note='';
+function $(i){return document.getElementById(i)}
+function pad(n){return String(n).padStart(2,'0')}
+function fmt(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function today(){return fmt(new Date())}
+function ago(n){var d=new Date();d.setDate(d.getDate()-n);return fmt(d)}
+function dlabel(s){try{return new Date(s+'T00:00:00').toLocaleDateString([],{weekday:'short',day:'numeric',month:'short'})}catch(e){return s}}
+function LIMIT(){return(st.limit>0)?st.limit:DEF_LIMIT}
+function lsGet(){try{var v=JSON.parse(localStorage.getItem('rt')||'null');if(v&&v.days){st.days=v.days;st.limit=v.limit||null}}catch(e){}}
+function lsSet(){try{localStorage.setItem('rt',JSON.stringify(st))}catch(e){}}
+function clean(d){var o={};if(d&&typeof d==='object')Object.keys(d).forEach(function(k){var n=Number(d[k]);if(n>0)o[k]=Math.round(n)});return o}
+function flush(){
+  if(!ref||busy||!dirty)return;busy=true;dirty=false;
+  ref.set({days:st.days,limit:st.limit}).then(function(){busy=false;flush()}).catch(function(){busy=false;note='Could not save to your account. Changes are kept on this device.';render()});
+}
+function persist(){lsSet();dirty=true;flush()}
+function bump(n){
+  var t=today(),c=(st.days[t]||0)+n;if(c<0)c=0;
+  if(c>0)st.days[t]=c;else delete st.days[t];
+  persist();render();
+}
+function render(){
+  var t=today(),c=st.days[t]||0,L=LIMIT();
+  $('today').textContent=c;
+  $('today').style.color=c>L?'var(--bad)':(c>=L*0.8?'var(--wa)':'var(--tx)');
+  $('msg').textContent=c>L?(c-L)+' over your daily limit of '+L+'.':(L-c)+' left before your daily limit of '+L+'.';
+  var W=$('week');W.textContent='';var tot=0,max=L;
+  for(var i=0;i<7;i++){var v=st.days[ago(i)]||0;if(v>max)max=v}
+  for(var j=0;j<7;j++){
+    var ds=ago(j),n=st.days[ds]||0;tot+=n;
+    var r=document.createElement('div');r.className='day';
+    var d=document.createElement('div');d.className='d';
+    if(j===0){var b=document.createElement('b');b.textContent='Today';d.appendChild(b)}else d.textContent=dlabel(ds);
+    var bar=document.createElement('div');bar.className='bar';
+    var f=document.createElement('i');f.style.width=Math.round(n/max*100)+'%';if(n>L)f.className='over';bar.appendChild(f);
+    var nn=document.createElement('div');nn.className='n';nn.textContent=n;
+    r.appendChild(d);r.appendChild(bar);r.appendChild(nn);W.appendChild(r);
+  }
+  var all=0;Object.keys(st.days).forEach(function(k){all+=st.days[k]});
+  $('wtot').textContent=tot;$('wavg').textContent=Math.round(tot/7);$('atot').textContent=all;
+  $('store').textContent=note||(mode==='db'?'Saved to your account.':'Saved on this device only.');
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-add]');if(b){bump(parseInt(b.getAttribute('data-add'),10))}
+});
+$('editgoal').addEventListener('click',function(){var f=$('goalform');f.hidden=!f.hidden;if(!f.hidden){$('g_limit').value=LIMIT();$('g_limit').focus()}});
+$('g_cancel').addEventListener('click',function(){$('goalform').hidden=true});
+$('g_save').addEventListener('click',function(){
+  var v=parseInt($('g_limit').value,10);if(!(v>0))return;
+  st.limit=v;persist();$('goalform').hidden=true;render();
+});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)render()});
+lsGet();st.days=clean(st.days);render();
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+
+</body></html>
